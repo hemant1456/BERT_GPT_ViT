@@ -6,12 +6,10 @@ import re
 from collections import Counter
 
 class SentenceDataset(Dataset):
-    def __init__(self, sentences, vocab, seq_len):
+    def __init__(self, sentences, vocab_stoi, vocab_itos, seq_len):
         super().__init__()
-        
-        self.vocab = vocab + ["<ignore>","<oov>","<mask>"] # ignore, out of vocab, mask
-        self.vocab_stoi = {word:i for i, word in enumerate(self.vocab)} #string to integer
-        self.vocab_itos = {i:word for word, i in self.vocab_stoi.items()} # integer to string
+        self.vocab_stoi = vocab_stoi #string to integer
+        self.vocab_itos = vocab_itos # integer to string
 
         self.seq_len = seq_len
         self.ignore_idx = self.vocab_stoi["<ignore>"]
@@ -25,7 +23,7 @@ class SentenceDataset(Dataset):
             sentence += self.sentences[(index+1)%len(self.sentences)]
             index+=1
         sentence = sentence[:self.seq_len]
-        sentence = [(word, self.ignore_idx) if random.random()>=0.5 else (self.mask_idx,word) for word in sentence]
+        sentence = [(word, self.ignore_idx) if random.random()>=0.15 else (self.mask_idx,word) for word in sentence]
         sentence_input = [word[0] for word in sentence]
         sentence_target = [word[1] for word in sentence]
         return torch.tensor(sentence_input, dtype=torch.int64), torch.tensor(sentence_target, dtype= torch.int64)
@@ -33,7 +31,7 @@ class SentenceDataset(Dataset):
     def __len__(self):
         return len(self.sentences)
 
-def get_sentence_dataloader(filename):
+def get_sentence_dataloader(filename, vocab_size,sequence_length):
     # preprocess the data
     with open(filename, "r") as f:
         data = f.read().splitlines()
@@ -43,11 +41,21 @@ def get_sentence_dataloader(filename):
         data = [re.sub(f"[{escape_character}]"," \g<0> ",sentence) for sentence in data]
 
     #creation of vocab
-    
-    vocab_size = 40000
     words = [word for sentence in data for word in sentence.split(" ")]
     count = Counter(words)
-    vocab = [word[0] for word in count.most_common(vocab_size)]
+    
+    vocab = [word[0] for word in count.most_common(vocab_size-3)]
+    vocab = vocab + ["<ignore>","<oov>","<mask>"]
+
+    print(f"total number of unique words are {len(count)}, taking most common {vocab_size-3} words along with 3 special tokens [ignore, oov, mask]")
+    
+    vocab_stoi = {word:i for i, word in enumerate(vocab)} #string to integer
+    vocab_itos = {i:word for word, i in vocab_stoi.items()} # integer to string
+    ignore_idx = vocab_stoi["<ignore>"]
+    oov_idx    = vocab_stoi["<oov>"]
+    mask_idx   = vocab_stoi["<mask>"]
+
+
     with open("vocab.txt", "w") as f:
         f.write("\n".join(vocab))
 
@@ -56,10 +64,9 @@ def get_sentence_dataloader(filename):
     train_data = data[:train_size]
     test_data = data[train_size:]
 
-    sequence_length = 160
-    train_dataset = SentenceDataset(train_data, vocab, sequence_length)
-    test_dataset = SentenceDataset(test_data, vocab, sequence_length)
+    train_dataset = SentenceDataset(train_data, vocab_stoi, vocab_itos, sequence_length)
+    test_dataset  = SentenceDataset(test_data,  vocab_stoi, vocab_itos, sequence_length)
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=False, pin_memory=True, num_workers=5)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, pin_memory=True, num_workers=5)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, pin_memory=True, num_workers=2 )
-    return train_loader, test_loader
+    return train_loader, test_loader, ignore_idx, oov_idx, mask_idx
