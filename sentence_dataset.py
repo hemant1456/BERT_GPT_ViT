@@ -51,9 +51,6 @@ def get_sentence_dataloader(filename, vocab_size,sequence_length):
     
     vocab_stoi = {word:i for i, word in enumerate(vocab)} #string to integer
     vocab_itos = {i:word for word, i in vocab_stoi.items()} # integer to string
-    ignore_idx = vocab_stoi["<ignore>"]
-    oov_idx    = vocab_stoi["<oov>"]
-    mask_idx   = vocab_stoi["<mask>"]
 
 
     with open("vocab.txt", "w") as f:
@@ -69,4 +66,4 @@ def get_sentence_dataloader(filename, vocab_size,sequence_length):
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, pin_memory=True, num_workers=5)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, pin_memory=True, num_workers=2 )
-    return train_loader, test_loader, ignore_idx, oov_idx, mask_idx
+    return train_loader, test_loader, vocab_stoi, vocab_itos
