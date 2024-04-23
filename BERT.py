@@ -7,7 +7,7 @@ from lightning import Trainer
 
 from attention_block import MultiHeadAttentionBlock, FeedForwardBlock, EncoderBlock
 from embedding import InputEmbedding, PositionalEmbedding
-from sentence_dataset import get_sentence_dataloader
+from dataloader_BERT import get_sentence_dataloader
 
 
 import random
