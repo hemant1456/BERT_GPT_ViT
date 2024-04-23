@@ -1,5 +1,6 @@
 import torch.nn as nn
 import math
+import torch
 
 class FeedForwardBlock(nn.Module):
     def __init__(self, d_model:int, d_ff: int, dropout:float):
@@ -75,6 +76,23 @@ class EncoderBlock(nn.Module):
     def forward(self,x, src_mask=None):
         norm_attn = self.layernorm1(x)
         x = x + self.dropout1(self.attention_block(norm_attn,norm_attn,norm_attn, src_mask))
+        norm_feed = self.layernorm2(x)
+        x = x + self.feed_forward_block(norm_feed)
+        return x
+
+class DecoderBlock(nn.Module):
+    def __init__(self, d_model=768, dropout=0.1, d_ff=512):
+        super().__init__()
+        self.layernorm1= nn.LayerNorm(d_model)
+        self.self_attention_block = MultiHeadAttentionBlock(d_model, 8, dropout)
+        self.dropout1 = nn.Dropout(dropout)
+        self.layernorm2= nn.LayerNorm(d_model)
+        self.feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
+        self.dropout2 = nn.Dropout(dropout)
+    def forward(self,x, src_mask=None):
+        norm_attn = self.layernorm1(x)
+        src_mask = (torch.tril(torch.ones(x.size(1),x.size(1)))==0).unsqueeze(0).unsqueeze(0)
+        x = x + self.dropout1(self.self_attention_block(norm_attn,norm_attn,norm_attn, src_mask))
         norm_feed = self.layernorm2(x)
         x = x + self.feed_forward_block(norm_feed)
         return x
